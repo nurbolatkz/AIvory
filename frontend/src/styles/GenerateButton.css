@@ -1,0 +1,110 @@
+.generate-button-container {
+  padding: 24px 16px 16px;
+  background: linear-gradient(to top, rgba(26, 16, 35, 0.95) 70%, transparent);
+  position: relative;
+  z-index: 10;
+}
+
+.generate-button {
+  width: 100%;
+  height: 60px;
+  background: linear-gradient(90deg, var(--purple-dark) 0%, #ec4899 100%);
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 700;
+  box-shadow: 0 10px 25px rgba(168, 85, 247, 0.4);
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.generate-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 15px 30px rgba(168, 85, 247, 0.5);
+}
+
+.generate-button:active {
+  transform: scale(0.98);
+  box-shadow: 0 5px 15px rgba(168, 85, 247, 0.4);
+  /* Add inner shadow for active state */
+  box-shadow: inset 0 1px 3px rgba(168, 85, 247, 0.3), 0 5px 15px rgba(168, 85, 247, 0.4);
+}
+
+.generate-button:disabled {
+  background: var(--purple-disabled);
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 5px 15px rgba(107, 33, 168, 0.3);
+  border: 1px solid var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+.generate-button:disabled::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.generate-button:disabled:hover {
+  transform: none;
+  box-shadow: 0 5px 15px rgba(107, 33, 168, 0.3);
+  background: var(--purple-disabled);
+}
+
+.generate-button:disabled .generate-button-content {
+  opacity: 0.7;
+}
+
+.generate-button-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.generate-icon {
+  transition: transform 0.3s ease;
+}
+
+.generate-icon-spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.generate-ready-text {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+  margin-top: 16px;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
