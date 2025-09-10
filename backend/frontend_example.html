@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Effects API Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .section {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .image-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .image-box {
+            flex: 1;
+            min-width: 300px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        select, input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .effects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .effect-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .effect-card:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.15);
+        }
+        .effect-card.selected {
+            border-color: #007bff;
+            background-color: #e6f0ff;
+        }
+        .effect-card img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.3);
+            border-radius: 50%;
+            border-top-color: #000;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Photo Effects API Demo</h1>
+        
+        <div class="section">
+            <h2>1. Select an Effect</h2>
+            <div>
+                <label for="categorySelect">Filter by category:</label>
+                <select id="categorySelect">
+                    <option value="">All Categories</option>
+                </select>
+                <button id="refreshEffects">Refresh Effects</button>
+            </div>
+            <div id="effectsList" class="effects-grid">
+                <!-- Effects will be loaded here -->
+                <p>Loading effects...</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. Upload and Process Image</h2>
+            <input type="file" id="imageUpload" accept="image/*">
+            <button id="processButton" disabled>Apply Selected Effect</button>
+            <div id="processingStatus" style="display: none;">
+                <span class="loading"></span>
+                <span>Processing image...</span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. Results</h2>
+            <div class="image-container">
+                <div class="image-box">
+                    <h3>Original Image</h3>
+                    <img id="originalImage" src="" alt="Original image">
+                </div>
+                <div class="image-box">
+                    <h3>Processed Image</h3>
+                    <img id="processedImage" src="" alt="Processed image">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the API client
+        import PhotoEffectsAPI from './frontend_example.js';
+        
+        // Initialize the API client
+        const api = new PhotoEffectsAPI();
+        
+        // DOM elements
+        const categorySelect = document.getElementById('categorySelect');
+        const effectsList = document.getElementById('effectsList');
+        const imageUpload = document.getElementById('imageUpload');
+        const processButton = document.getElementById('processButton');
+        const processingStatus = document.getElementById('processingStatus');
+        const originalImage = document.getElementById('originalImage');
+        const processedImage = document.getElementById('processedImage');
+        const refreshEffects = document.getElementById('refreshEffects');
+        
+        // State
+        let selectedEffectId = null;
+        let uploadedImageId = null;
+        
+        // Load effect categories
+        async function loadCategories() {
+            try {
+                const categories = await api.getEffectCategories();
+                categorySelect.innerHTML = '<option value="">All Categories</option>';
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.slug;
+                    option.textContent = category.name;
+                    categorySelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+                effectsList.innerHTML = '<p>Error loading categories</p>';
+            }
+        }
+        
+        // Load effects
+        async function loadEffects(category = null) {
+            try {
+                effectsList.innerHTML = '<p>Loading effects...</p>';
+                const effects = await api.getEffects(category);
+                
+                if (effects.length === 0) {
+                    effectsList.innerHTML = '<p>No effects found</p>';
+                    return;
+                }
+                
+                effectsList.innerHTML = '';
+                effects.forEach(effect => {
+                    const effectCard = document.createElement('div');
+                    effectCard.className = 'effect-card';
+                    effectCard.innerHTML = `
+                        <img src="${effect.thumbnail || 'https://via.placeholder.com/150?text=No+Image'}" alt="${effect.name}">
+                        <h4>${effect.name}</h4>
+                        <p>${effect.user_description}</p>
+                        ${effect.is_premium ? '<span style="color: gold;">★ Premium</span>' : ''}
+                    `;
+                    effectCard.addEventListener('click', () => {
+                        // Remove selected class from all cards
+                        document.querySelectorAll('.effect-card').forEach(card => {
+                            card.classList.remove('selected');
+                        });
+                        // Add selected class to clicked card
+                        effectCard.classList.add('selected');
+                        // Store selected effect ID
+                        selectedEffectId = effect.id;
+                        // Enable process button if image is uploaded
+                        if (uploadedImageId) {
+                            processButton.disabled = false;
+                        }
+                    });
+                    effectsList.appendChild(effectCard);
+                });
+            } catch (error) {
+                console.error('Failed to load effects:', error);
+                effectsList.innerHTML = '<p>Error loading effects</p>';
+            }
+        }
+        
+        // Handle image upload
+        imageUpload.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                try {
+                    // Display original image
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        originalImage.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                    
+                    // Upload the image
+                    const uploadResult = await api.uploadImage(file);
+                    uploadedImageId = uploadResult.id;
+                    
+                    // Enable process button if effect is selected
+                    if (selectedEffectId) {
+                        processButton.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Image upload failed:', error);
+                    alert('Image upload failed: ' + error.message);
+                }
+            }
+        });
+        
+        // Handle process button click
+        processButton.addEventListener('click', async () => {
+            if (!uploadedImageId || !selectedEffectId) return;
+            
+            try {
+                // Show processing status
+                processingStatus.style.display = 'block';
+                processButton.disabled = true;
+                
+                // Apply the effect
+                const processResult = await api.applyEffect(uploadedImageId, selectedEffectId);
+                
+                // Display the result
+                processedImage.src = processResult.processed_image;
+                
+                // Hide processing status
+                processingStatus.style.display = 'none';
+            } catch (error) {
+                console.error('Image processing failed:', error);
+                alert('Image processing failed: ' + error.message);
+                processingStatus.style.display = 'none';
+                processButton.disabled = false;
+            }
+        });
+        
+        // Refresh effects
+        refreshEffects.addEventListener('click', () => {
+            loadEffects(categorySelect.value || null);
+        });
+        
+        // Category filter change
+        categorySelect.addEventListener('change', () => {
+            loadEffects(categorySelect.value || null);
+        });
+        
+        // Initialize
+        loadCategories();
+        loadEffects();
+    </script>
+</body>
+</html>

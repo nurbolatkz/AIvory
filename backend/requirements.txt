@@ -1,2 +1,9 @@
-python-telegram-bot
-python-dotenv
+Django==4.2.7
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+Pillow==10.0.1
+google-generativeai==0.3.2
+python-dotenv==1.0.0
+psycopg2-binary==2.9.7  # For PostgreSQL
+celery==5.3.4  # For background tasks
+redis==5.0.1  # For Celery broker
