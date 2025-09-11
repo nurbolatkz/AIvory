@@ -112,6 +112,26 @@ All error responses follow this format:
   "effect_name": "Vintage Photo",
   "original_image_url": "http://localhost:8000/media/uploads/image.jpg",
   "processing_time": 2.5,
+  "status": "processing",
+  "created_at": "2023-01-01T12:05:00Z"
+```
+
+**Note:** This endpoint returns immediately with a "processing" status. You need to poll the processing status endpoint to get the final result.
+
+### Get Processing Status
+
+**Endpoint:** `GET /images/processed_images/{processed_id}/processing_status/`
+
+**Description:** Get the current status of an image processing job
+
+**Response:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440001",
+  "processed_image": "http://localhost:8000/media/processed/result.jpg",
+  "effect_name": "Vintage Photo",
+  "original_image_url": "http://localhost:8000/media/uploads/image.jpg",
+  "processing_time": 2.5,
   "status": "completed",
   "created_at": "2023-01-01T12:05:00Z"
 }
@@ -179,8 +199,19 @@ Free users are limited to 5 effect applications per month. Premium effects are o
 2. **Get effects:** `GET /effects/effects/`
 3. **Upload an image:** `POST /images/images/`
 4. **Apply an effect:** `POST /images/images/{image_id}/apply_effect/`
-5. **View the result:** Use the `processed_image` URL from the response
+5. **Poll for result:** `GET /images/processed_images/{processed_id}/processing_status/` (repeat until status is "completed" or "failed")
+6. **View the result:** Use the `processed_image` URL from the response
 
 ## 6. Media Files
 
 All uploaded and processed images are stored in the media directory and accessible via URLs in the API responses.
+
+## 7. Gemini API Integration
+
+The backend uses the Gemini API for image processing:
+
+1. **Image Analysis**: Uses `gemini-2.0-flash-exp` model to analyze images and generate editing instructions
+2. **Image Generation**: Uses `imagen-3.0-generate-002` model to generate or edit images based on the instructions
+3. **Specialized Effects**: Some effects like "Center Stage" use specialized prompting techniques for better results
+
+The API key should be configured in the Django settings as `GEMINI_API_KEY`.

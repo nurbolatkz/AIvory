@@ -6,50 +6,19 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Sparkles, TrendingUp, Camera, Upload, X, Play, Heart, Download } from "lucide-react"
 import Link from "next/link"
-
-const trendingEffects = [
-  {
-    id: 1,
-    name: "Neon Glow",
-    users: "23.1k",
-    badge: "🔥 Trending",
-    preview: "/neon-glow-effect-purple-pink.jpg",
-    category: "Glow",
-  },
-  {
-    id: 2,
-    name: "Cyber Glitch",
-    users: "18.7k",
-    badge: "⚡ Hot",
-    preview: "/cyber-glitch-effect-blue-cyan.jpg",
-    category: "Tech",
-  },
-  {
-    id: 3,
-    name: "Hologram",
-    users: "15.2k",
-    badge: "✨ New",
-    preview: "/hologram-effect-futuristic.jpg",
-    category: "Futuristic",
-  },
-  {
-    id: 4,
-    name: "Vaporwave",
-    users: "12.8k",
-    badge: "🌈 Viral",
-    preview: "/vaporwave-aesthetic-retro.jpg",
-    category: "Retro",
-  },
-]
+import { useApi, type Effect } from "@/hooks/useApi"
+import { fetchManager } from "@/lib/api"
 
 export default function EffectApp() {
-  const [selectedEffect, setSelectedEffect] = useState<(typeof trendingEffects)[0] | null>(null)
+  const { effects: trendingEffects, loading, error } = useApi();
+  const [selectedEffect, setSelectedEffect] = useState<Effect | null>(null)
   const [showCameraModal, setShowCameraModal] = useState(false)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [showResult, setShowResult] = useState(false)
   const [processedImage, setProcessedImage] = useState<string | null>(null)
   const [showMainResult, setShowMainResult] = useState(false)
+  const [uploadedImageId, setUploadedImageId] = useState<string | null>(null)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -92,30 +61,132 @@ export default function EffectApp() {
     }
   }
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setCapturedImage(e.target?.result as string)
-        setShowCameraModal(true)
+      try {
+        setIsProcessing(true);
+        // Upload the image to get an ID
+        const formData = new FormData();
+        formData.append('image', file);
+        const imageData = await fetchManager.uploadImage(formData);
+        setUploadedImageId(imageData.id);
+        setCapturedImage(URL.createObjectURL(file));
+        setShowCameraModal(true);
+      } catch (error: any) {
+        console.error("Error uploading image:", error);
+        alert(`Error uploading image: ${error.message || 'Unknown error'}`);
+      } finally {
+        setIsProcessing(false);
       }
-      reader.readAsDataURL(file)
     }
   }
 
-  const processImage = () => {
-    if (!capturedImage || !selectedEffect) return
+  const processImage = async () => {
+    if (!capturedImage || !selectedEffect || !uploadedImageId) return
 
     setIsProcessing(true)
-    // Simulate processing
-    setTimeout(() => {
-      setProcessedImage(capturedImage) // In real app, this would be the processed image
+    try {
+      // Apply the selected effect to the uploaded image
+      const result = await fetchManager.applyEffect(uploadedImageId, selectedEffect.id);
+      
+      // The result contains the ID of the processed image
+      // We need to poll for the actual processed image
+      const processedId = result.id || result.processed_image_id;
+      
+      if (!processedId) {
+        throw new Error('Invalid response from server: No ID for polling');
+      }
+      
+      // Poll for the processed image status
+      const processedResult = await pollForProcessedResult(processedId);
+      setProcessedImage(processedResult.processed_image || processedResult.original_image);
       setIsProcessing(false)
       setShowResult(true)
       setShowMainResult(true)
-    }, 2000)
+    } catch (error: any) {
+      console.error("Error applying effect:", error);
+      alert(`Error applying effect: ${error.message || 'Unknown error'}`);
+      setIsProcessing(false)
+    }
   }
+
+  // Poll for processed result
+  const pollForProcessedResult = async (processedId: string) => {
+    console.log('Starting pollForProcessedResult with ID:', processedId);
+    
+    // Increase timeout for long-running operations
+    const pollInterval = 3000; // 3 seconds
+    const maxAttempts = 40; // 120 seconds max
+    let attempts = 0;
+    
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        try {
+          attempts++;
+          console.log(`Polling attempt ${attempts} for processed image ${processedId}`);
+          
+          // Check if we've exceeded max attempts
+          if (attempts > maxAttempts) {
+            console.log('Polling timeout reached');
+            reject(new Error('Image processing is taking longer than expected. Please try again.'));
+            return;
+          }
+          
+          // Get the processed image status
+          console.log('Fetching status for:', processedId);
+          const result = await fetchManager.getProcessedStatus(processedId);
+          console.log(`Polling attempt ${attempts} result:`, result);
+          
+          if (!result) {
+            console.error('Empty response from server');
+            reject(new Error('Empty response from server'));
+            return;
+          }
+          
+          // Handle string responses
+          let statusResult;
+          if (typeof result === 'string') {
+            try {
+              statusResult = JSON.parse(result);
+              console.log('Parsed status result:', statusResult);
+            } catch (parseError) {
+              console.error('Failed to parse status response:', parseError);
+              statusResult = {
+                status: 'failed',
+                error_message: 'Invalid response format from server'
+              };
+            }
+          } else {
+            statusResult = result;
+          }
+          
+          console.log('Status result:', statusResult);
+          console.log('Status result status:', statusResult.status);
+          
+          // Make sure we're checking all possible status values
+          if (statusResult.status === 'completed') {
+            console.log('Processing completed:', statusResult);
+            resolve(statusResult);
+          } else if (statusResult.status === 'failed') {
+            console.log('Processing failed:', statusResult);
+            reject(new Error(statusResult.error_message || 'Image processing failed'));
+          } else {
+            // Continue polling for 'processing' or any other status
+            console.log(`Scheduling next poll in ${pollInterval}ms`);
+            setTimeout(poll, pollInterval);
+          }
+        } catch (err) {
+          console.error('Error during polling:', err);
+          reject(err);
+        }
+      };
+      
+      // Start polling
+      console.log('Starting first poll');
+      poll();
+    });
+  };
 
   const closeModal = () => {
     setShowCameraModal(false)
@@ -133,13 +204,14 @@ export default function EffectApp() {
     setCapturedImage(null)
     setProcessedImage(null)
     setSelectedEffect(null)
+    setUploadedImageId(null)
     if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream
       stream.getTracks().forEach((track) => track.stop())
     }
   }
 
-  const handleEffectSelect = (effect: (typeof trendingEffects)[0]) => {
+  const handleEffectSelect = (effect: Effect) => {
     setSelectedEffect(effect)
   }
 
@@ -186,6 +258,32 @@ export default function EffectApp() {
     }
   }
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading effects...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-center p-4">
+          <div className="text-red-500 mb-4">⚠️</div>
+          <h2 className="text-xl font-bold mb-2">Error Loading Effects</h2>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="p-4 border-b border-border/20">
@@ -229,9 +327,19 @@ export default function EffectApp() {
               onClick={() => fileInputRef.current?.click()}
               variant="outline"
               className="flex-1 border-primary/30 hover:border-primary/50 hover:bg-primary/5"
+              disabled={isProcessing}
             >
-              <Upload className="w-4 h-4 mr-2" />
-              Upload Photo
+              {isProcessing ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Uploading...
+                </div>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Photo
+                </>
+              )}
             </Button>
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
@@ -255,7 +363,7 @@ export default function EffectApp() {
                 <div className="p-3 space-y-2">
                   <div className="relative">
                     <img
-                      src={effect.preview || "/placeholder.svg"}
+                      src={effect.preview || effect.thumbnail || "/placeholder.svg"}
                       alt={effect.name}
                       className="w-full aspect-square rounded-lg object-cover"
                     />
@@ -269,7 +377,7 @@ export default function EffectApp() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-sm">{effect.name}</h3>
-                    <p className="text-xs text-muted-foreground">{effect.users} users</p>
+                    <p className="text-xs text-muted-foreground">{effect.users || '0k'} users</p>
                   </div>
                 </div>
               </Card>
@@ -281,7 +389,7 @@ export default function EffectApp() {
           <Card className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 p-4">
             <div className="flex items-center gap-3">
               <img
-                src={selectedEffect.preview || "/placeholder.svg"}
+                src={selectedEffect.preview || selectedEffect.thumbnail || "/placeholder.svg"}
                 alt={selectedEffect.name}
                 className="w-12 h-12 rounded-lg object-cover"
               />
@@ -405,7 +513,7 @@ export default function EffectApp() {
         </div>
       )}
 
-      {showResult && processedImage && (
+      {showResult && processedImage && selectedEffect && (
         <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
           <div className="bg-card/95 backdrop-blur rounded-xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">

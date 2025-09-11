@@ -1,0 +1,201 @@
+.trendrider-container {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--bg-dark) 0%, #2c1a3b 50%, var(--bg-dark) 100%);
+  font-family: "Inter", "Segoe UI", sans-serif;
+  padding: 0;
+  margin: 0;
+  /* Add subtle noise texture for visual interest without harshness */
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.hero-section {
+  text-align: center;
+  padding: 40px 20px 30px;
+  background: linear-gradient(to bottom, rgba(26, 16, 35, 0.9) 0%, rgba(44, 26, 59, 0.7) 100%);
+  position: relative;
+}
+
+.hero-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1;
+}
+
+.hero-section > * {
+  position: relative;
+  z-index: 2;
+}
+
+.hero-title {
+  font-size: 2.75rem;
+  font-weight: 900;
+  line-height: 1.2;
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+}
+
+.hero-title-gradient {
+  background: linear-gradient(90deg, #f472b6 0%, var(--purple-base) 50%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.hero-subtitle {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.125rem;
+  line-height: 1.6;
+  max-width: 500px;
+  margin: 0 auto 24px;
+  font-weight: 400;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.main-content {
+  flex: 1;
+  padding: 0 0 20px;
+  overflow-y: auto;
+}
+
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Processing Modal Styles */
+.processing-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 50;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.processing-modal-content {
+  background: linear-gradient(to bottom right, #4c1d95, #312e81);
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  max-width: 24rem;
+  width: 100%;
+}
+
+.processing-spinner {
+  width: 4rem;
+  height: 4rem;
+  border-width: 4px;
+  border-color: #a78bfa;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.processing-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.processing-description {
+  color: #c7d2fe;
+  margin-bottom: 1.5rem;
+}
+
+.processing-progress {
+  width: 100%;
+  height: 0.625rem;
+  background-color: #4c1d95;
+  border-radius: 0.3125rem;
+  overflow: hidden;
+}
+
+.processing-progress-bar {
+  height: 100%;
+  background: linear-gradient(to right, #8b5cf6, #ec4899);
+  border-radius: 0.3125rem;
+  width: 75%;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Processed Image Section */
+.processed-image-section {
+  margin-top: 32px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.processed-title {
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.processed-image-container {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  aspect-ratio: 4 / 5;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.processed-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+
+/* Add some spacing to the bottom of the main content */
+.content-wrapper {
+  padding-bottom: 80px;
+}

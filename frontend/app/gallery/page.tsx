@@ -22,113 +22,22 @@ import {
   Save,
 } from "lucide-react"
 import Link from "next/link"
-
-const categories = [
-  { id: "all", name: "All", count: 156 },
-  { id: "beginner", name: "Beginner", count: 42, icon: "🌟" },
-  { id: "intermediate", name: "Intermediate", count: 68, icon: "⚡" },
-  { id: "expert", name: "Expert", count: 32, icon: "👑" },
-  { id: "viral", name: "Viral", count: 14, icon: "🔥" },
-]
-
-const presets = [
-  {
-    id: 1,
-    name: "Neon Glow",
-    category: "intermediate",
-    difficulty: "Intermediate",
-    users: "23.1k",
-    likes: "4.2k",
-    preview: "/neon-glow-effect-purple-pink.jpg",
-    badge: "🔥 Trending",
-    description: "Electric neon glow with purple-pink gradients",
-    tags: ["neon", "glow", "cyberpunk"],
-    creator: "NeonMaster",
-    featured: true,
-  },
-  {
-    id: 2,
-    name: "Cyber Glitch",
-    category: "expert",
-    difficulty: "Expert",
-    users: "18.7k",
-    likes: "3.8k",
-    preview: "/cyber-glitch-effect-blue-cyan.jpg",
-    badge: "⚡ Hot",
-    description: "Digital glitch with matrix-style effects",
-    tags: ["glitch", "cyber", "matrix"],
-    creator: "GlitchGod",
-    featured: true,
-  },
-  {
-    id: 3,
-    name: "Hologram",
-    category: "intermediate",
-    difficulty: "Intermediate",
-    users: "15.2k",
-    likes: "2.9k",
-    preview: "/hologram-effect-futuristic.jpg",
-    badge: "✨ New",
-    description: "Futuristic holographic projection effect",
-    tags: ["hologram", "futuristic", "3d"],
-    creator: "HoloArt",
-    featured: false,
-  },
-  {
-    id: 4,
-    name: "Vaporwave",
-    category: "beginner",
-    difficulty: "Beginner",
-    users: "12.8k",
-    likes: "2.1k",
-    preview: "/vaporwave-aesthetic-retro.jpg",
-    badge: "🌈 Viral",
-    description: "Retro 80s aesthetic with synthwave vibes",
-    tags: ["vaporwave", "retro", "80s"],
-    creator: "RetroWave",
-    featured: false,
-  },
-  {
-    id: 5,
-    name: "Crystal Prism",
-    category: "expert",
-    difficulty: "Expert",
-    users: "9.4k",
-    likes: "1.8k",
-    preview: "/crystal-prism-rainbow-refraction-effect.jpg",
-    badge: "💎 Premium",
-    description: "Rainbow light refraction through crystal",
-    tags: ["crystal", "prism", "rainbow"],
-    creator: "CrystalFX",
-    featured: false,
-  },
-  {
-    id: 6,
-    name: "Fire Storm",
-    category: "intermediate",
-    difficulty: "Intermediate",
-    users: "11.2k",
-    likes: "2.3k",
-    preview: "/fire-storm-flames-orange-red-effect.jpg",
-    badge: "🔥 Hot",
-    description: "Intense fire and flame effects",
-    tags: ["fire", "flames", "storm"],
-    creator: "FireMaster",
-    featured: false,
-  },
-]
+import { useApi, type Effect, type Category } from "@/hooks/useApi"
+import { fetchManager } from "@/lib/api"
 
 export default function GalleryPage() {
-  const [selectedCategory, setSelectedCategory] = useState("all")
+  const { effects: presets, categories, loading, error } = useApi();
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedPreset, setSelectedPreset] = useState(null)
+  const [selectedPreset, setSelectedPreset] = useState<Effect | null>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isApplyingEffect, setIsApplyingEffect] = useState(false)
-  const [uploadedImage, setUploadedImage] = useState(null)
-  const [processedImage, setProcessedImage] = useState(null)
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+  const [processedImage, setProcessedImage] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [uploadedImageId, setUploadedImageId] = useState<string | null>(null)
 
-  const handleTryNow = (preset) => {
+  const handleTryNow = (preset: Effect) => {
     setSelectedPreset(preset)
     setIsPreviewOpen(true)
   }
@@ -140,25 +49,30 @@ export default function GalleryPage() {
     setUploadedImage(null)
     setProcessedImage(null)
     setIsProcessing(false)
+    setUploadedImageId(null)
   }
 
   const handleApplyEffect = () => {
     setIsApplyingEffect(true)
   }
 
-  const handleImageUpload = (event) => {
-    const file = event.target.files[0]
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setUploadedImage(e.target.result)
-        setIsProcessing(true)
-        setTimeout(() => {
-          setProcessedImage(e.target.result)
-          setIsProcessing(false)
-        }, 2000)
+      try {
+        setIsProcessing(true);
+        // Upload the image to get an ID
+        const formData = new FormData();
+        formData.append('image', file);
+        const imageData = await fetchManager.uploadImage(formData);
+        setUploadedImageId(imageData.id);
+        setUploadedImage(URL.createObjectURL(file));
+        setIsProcessing(false);
+      } catch (error: any) {
+        console.error("Error uploading image:", error);
+        alert(`Error uploading image: ${error.message || 'Unknown error'}`);
+        setIsProcessing(false);
       }
-      reader.readAsDataURL(file)
     }
   }
 
@@ -173,7 +87,7 @@ export default function GalleryPage() {
   }
 
   const handleSaveResult = () => {
-    if (processedImage) {
+    if (processedImage && selectedPreset) {
       const link = document.createElement("a")
       link.download = `${selectedPreset.name.toLowerCase().replace(/\s+/g, "-")}-effect.jpg`
       link.href = processedImage
@@ -182,7 +96,7 @@ export default function GalleryPage() {
   }
 
   const handleShareResult = async () => {
-    if (navigator.share && processedImage) {
+    if (selectedPreset && navigator.share && processedImage) {
       try {
         await navigator.share({
           title: `Check out my ${selectedPreset.name} effect!`,
@@ -199,15 +113,185 @@ export default function GalleryPage() {
     }
   }
 
+  const processSelectedEffect = async () => {
+    if (!uploadedImageId || !selectedPreset) return;
+
+    try {
+      setIsProcessing(true);
+      // Apply the selected effect to the uploaded image
+      const result = await fetchManager.applyEffect(uploadedImageId, selectedPreset.id);
+      
+      // The result contains the ID of the processed image
+      // We need to poll for the actual processed image
+      const processedId = result.id || result.processed_image_id;
+      
+      if (!processedId) {
+        throw new Error('Invalid response from server: No ID for polling');
+      }
+      
+      // Poll for the processed image status
+      const processedResult = await pollForProcessedResult(processedId);
+      setProcessedImage(processedResult.processed_image || processedResult.original_image);
+      setIsProcessing(false);
+    } catch (error: any) {
+      console.error("Error applying effect:", error);
+      alert(`Error applying effect: ${error.message || 'Unknown error'}`);
+      setIsProcessing(false);
+    }
+  }
+
+  // Poll for processed result
+  const pollForProcessedResult = async (processedId: string) => {
+    console.log('Starting pollForProcessedResult with ID:', processedId);
+    
+    // Increase timeout for long-running operations
+    const pollInterval = 3000; // 3 seconds
+    const maxAttempts = 40; // 120 seconds max
+    let attempts = 0;
+    
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        try {
+          attempts++;
+          console.log(`Polling attempt ${attempts} for processed image ${processedId}`);
+          
+          // Check if we've exceeded max attempts
+          if (attempts > maxAttempts) {
+            console.log('Polling timeout reached');
+            reject(new Error('Image processing is taking longer than expected. Please try again.'));
+            return;
+          }
+          
+          // Get the processed image status
+          console.log('Fetching status for:', processedId);
+          const result = await fetchManager.getProcessedStatus(processedId);
+          console.log(`Polling attempt ${attempts} result:`, result);
+          
+          if (!result) {
+            console.error('Empty response from server');
+            reject(new Error('Empty response from server'));
+            return;
+          }
+          
+          // Handle string responses
+          let statusResult;
+          if (typeof result === 'string') {
+            try {
+              statusResult = JSON.parse(result);
+              console.log('Parsed status result:', statusResult);
+            } catch (parseError) {
+              console.error('Failed to parse status response:', parseError);
+              statusResult = {
+                status: 'failed',
+                error_message: 'Invalid response format from server'
+              };
+            }
+          } else {
+            statusResult = result;
+          }
+          
+          console.log('Status result:', statusResult);
+          console.log('Status result status:', statusResult.status);
+          
+          // Make sure we're checking all possible status values
+          if (statusResult.status === 'completed') {
+            console.log('Processing completed:', statusResult);
+            resolve(statusResult);
+          } else if (statusResult.status === 'failed') {
+            console.log('Processing failed:', statusResult);
+            reject(new Error(statusResult.error_message || 'Image processing failed'));
+          } else {
+            // Continue polling for 'processing' or any other status
+            console.log(`Scheduling next poll in ${pollInterval}ms`);
+            setTimeout(poll, pollInterval);
+          }
+        } catch (err) {
+          console.error('Error during polling:', err);
+          reject(err);
+        }
+      };
+      
+      // Start polling
+      console.log('Starting first poll');
+      poll();
+    });
+  };
+
   const filteredPresets = presets.filter((preset) => {
-    const matchesCategory = selectedCategory === "all" || preset.category === selectedCategory
+    const matchesCategory = selectedCategory === "all" || preset.category_name === selectedCategory
     const matchesSearch =
       preset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      preset.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      (preset.tags && preset.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())))
     return matchesCategory && matchesSearch
   })
 
   const featuredPresets = presets.filter((preset) => preset.featured)
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur border-b border-border/20 p-4">
+          <div className="flex items-center gap-4 max-w-6xl mx-auto">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="p-2">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-white px-3 py-1 rounded-lg bg-gradient-to-r from-primary to-secondary inline-block">
+                Effect Gallery
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">Discover and try amazing effects</p>
+            </div>
+            <Button variant="ghost" size="sm" className="p-2">
+              <Filter className="w-5 h-5" />
+            </Button>
+          </div>
+        </header>
+        <main className="max-w-6xl mx-auto p-4 flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading effects...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur border-b border-border/20 p-4">
+          <div className="flex items-center gap-4 max-w-6xl mx-auto">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="p-2">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-white px-3 py-1 rounded-lg bg-gradient-to-r from-primary to-secondary inline-block">
+                Effect Gallery
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">Discover and try amazing effects</p>
+            </div>
+            <Button variant="ghost" size="sm" className="p-2">
+              <Filter className="w-5 h-5" />
+            </Button>
+          </div>
+        </header>
+        <main className="max-w-6xl mx-auto p-4 flex items-center justify-center h-96">
+          <div className="text-center p-4">
+            <div className="text-red-500 mb-4 text-4xl">⚠️</div>
+            <h2 className="text-xl font-bold mb-2">Error Loading Effects</h2>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -259,7 +343,7 @@ export default function GalleryPage() {
                 >
                   <div className="relative">
                     <img
-                      src={preset.preview || "/placeholder.svg"}
+                      src={preset.preview || preset.thumbnail || "/placeholder.svg"}
                       alt={preset.name}
                       className="w-full h-48 object-cover"
                     />
@@ -278,26 +362,26 @@ export default function GalleryPage() {
                     <div className="flex items-start justify-between mb-2">
                       <div>
                         <h3 className="font-bold text-lg">{preset.name}</h3>
-                        <p className="text-sm text-muted-foreground">by {preset.creator}</p>
+                        <p className="text-sm text-muted-foreground">by {preset.creator || 'Unknown'}</p>
                       </div>
                       <Badge variant="outline" className="text-xs border-border text-foreground">
-                        {preset.difficulty}
+                        {preset.difficulty || 'Beginner'}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">{preset.description}</p>
+                    <p className="text-sm text-muted-foreground mb-3">{preset.description || preset.user_description || 'No description available'}</p>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Users className="w-4 h-4" />
-                          {preset.users}
+                          {preset.users || '0k'}
                         </div>
                         <div className="flex items-center gap-1">
                           <Heart className="w-4 h-4" />
-                          {preset.likes}
+                          {preset.likes || '0k'}
                         </div>
                       </div>
                       <div className="flex gap-1">
-                        {preset.tags.slice(0, 2).map((tag) => (
+                        {preset.tags && preset.tags.slice(0, 2).map((tag) => (
                           <Badge key={tag} className="text-xs bg-secondary/30 text-white border-secondary/50">
                             {tag}
                           </Badge>
@@ -314,21 +398,35 @@ export default function GalleryPage() {
         {/* Category Filters */}
         <section className="space-y-4">
           <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            <Button
+              key="all"
+              variant={selectedCategory === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedCategory("all")}
+              className={`whitespace-nowrap ${
+                selectedCategory === "all"
+                  ? "bg-primary text-white"
+                  : "bg-transparent border-border/30 hover:bg-card/50 text-foreground"
+              }`}
+            >
+              🎨 All
+              <Badge className="ml-2 bg-secondary/30 text-white text-xs border-secondary/50">{presets.length}</Badge>
+            </Button>
             {categories.map((category) => (
               <Button
                 key={category.id}
-                variant={selectedCategory === category.id ? "default" : "outline"}
+                variant={selectedCategory === category.id.toString() ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => setSelectedCategory(category.id.toString())}
                 className={`whitespace-nowrap ${
-                  selectedCategory === category.id
+                  selectedCategory === category.id.toString()
                     ? "bg-primary text-white"
                     : "bg-transparent border-border/30 hover:bg-card/50 text-foreground"
                 }`}
               >
                 {category.icon && <span className="mr-1">{category.icon}</span>}
                 {category.name}
-                <Badge className="ml-2 bg-secondary/30 text-white text-xs border-secondary/50">{category.count}</Badge>
+                <Badge className="ml-2 bg-secondary/30 text-white text-xs border-secondary/50">{category.count || 0}</Badge>
               </Button>
             ))}
           </div>
@@ -340,7 +438,7 @@ export default function GalleryPage() {
             <h2 className="text-lg font-bold">
               {selectedCategory === "all"
                 ? "All Effects"
-                : categories.find((c) => c.id === selectedCategory)?.name + " Effects"}
+                : categories.find((c) => c.id.toString() === selectedCategory)?.name + " Effects"}
             </h2>
             <p className="text-sm text-muted-foreground">{filteredPresets.length} effects found</p>
           </div>
@@ -353,7 +451,7 @@ export default function GalleryPage() {
               >
                 <div className="relative">
                   <img
-                    src={preset.preview || "/placeholder.svg"}
+                    src={preset.preview || preset.thumbnail || "/placeholder.svg"}
                     alt={preset.name}
                     className="w-full h-40 object-cover group-hover:scale-105 transition-transform"
                   />
@@ -376,21 +474,21 @@ export default function GalleryPage() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <h3 className="font-semibold text-sm truncate">{preset.name}</h3>
-                      <p className="text-xs text-muted-foreground">by {preset.creator}</p>
+                      <p className="text-xs text-muted-foreground">by {preset.creator || 'Unknown'}</p>
                     </div>
                     <Badge variant="outline" className="text-xs ml-2 border-border text-foreground">
-                      {preset.difficulty}
+                      {preset.difficulty || 'Beginner'}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1">
                         <Users className="w-3 h-3" />
-                        {preset.users}
+                        {preset.users || '0k'}
                       </div>
                       <div className="flex items-center gap-1">
                         <Heart className="w-3 h-3" />
-                        {preset.likes}
+                        {preset.likes || '0k'}
                       </div>
                     </div>
                     <Button variant="ghost" size="sm" className="p-1 h-auto">
@@ -429,7 +527,7 @@ export default function GalleryPage() {
             <div className="flex items-center justify-between p-6 border-b border-border/30">
               <div>
                 <h2 className="text-2xl font-bold">{selectedPreset.name}</h2>
-                <p className="text-muted-foreground">by {selectedPreset.creator}</p>
+                <p className="text-muted-foreground">by {selectedPreset.creator || 'Unknown'}</p>
               </div>
               <Button variant="ghost" size="sm" onClick={closePreview}>
                 <X className="w-5 h-5" />
@@ -441,12 +539,12 @@ export default function GalleryPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <img
-                      src={selectedPreset.preview || "/placeholder.svg"}
+                      src={selectedPreset.preview || selectedPreset.thumbnail || "/placeholder.svg"}
                       alt={selectedPreset.name}
                       className="w-full h-64 object-cover rounded-xl"
                     />
                     <div className="flex gap-2">
-                      {selectedPreset.tags.map((tag) => (
+                      {selectedPreset.tags && selectedPreset.tags.map((tag) => (
                         <Badge key={tag} className="bg-secondary/30 text-white border-secondary/50">
                           {tag}
                         </Badge>
@@ -457,30 +555,30 @@ export default function GalleryPage() {
                   <div className="space-y-4">
                     <div>
                       <h3 className="font-semibold mb-2">Description</h3>
-                      <p className="text-muted-foreground">{selectedPreset.description}</p>
+                      <p className="text-muted-foreground">{selectedPreset.description || selectedPreset.user_description || 'No description available'}</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Difficulty</p>
                         <Badge variant="outline" className="border-border text-foreground">
-                          {selectedPreset.difficulty}
+                          {selectedPreset.difficulty || 'Beginner'}
                         </Badge>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Category</p>
-                        <Badge className="bg-primary text-white">{selectedPreset.category}</Badge>
+                        <Badge className="bg-primary text-white">{selectedPreset.category_name}</Badge>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
-                        {selectedPreset.users} users
+                        {selectedPreset.users || '0'} users
                       </div>
                       <div className="flex items-center gap-1">
                         <Heart className="w-4 h-4" />
-                        {selectedPreset.likes} likes
+                        {selectedPreset.likes || '0'} likes
                       </div>
                     </div>
 
@@ -520,15 +618,26 @@ export default function GalleryPage() {
                             onChange={handleImageUpload}
                             className="hidden"
                             id="image-upload"
+                            disabled={isProcessing}
                           />
                           <label htmlFor="image-upload">
                             <Button
                               className="w-full h-24 flex-col gap-2 bg-primary/20 hover:bg-primary/30 border-2 border-dashed border-primary/50"
                               asChild
+                              disabled={isProcessing}
                             >
                               <div className="cursor-pointer">
-                                <Upload className="w-6 h-6" />
-                                <span className="text-sm">Upload Photo</span>
+                                {isProcessing ? (
+                                  <div className="flex flex-col items-center">
+                                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin mb-2" />
+                                    <span className="text-sm">Uploading...</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <Upload className="w-6 h-6" />
+                                    <span className="text-sm">Upload Photo</span>
+                                  </>
+                                )}
                               </div>
                             </Button>
                           </label>
@@ -551,12 +660,14 @@ export default function GalleryPage() {
                     <div className="space-y-6">
                       <div className="text-center">
                         <h3 className="text-xl font-bold mb-2">
-                          {isProcessing ? "Applying Effect..." : "Effect Applied!"}
+                          {isProcessing ? "Applying Effect..." : processedImage ? "Effect Applied!" : "Preview Image"}
                         </h3>
                         <p className="text-muted-foreground">
                           {isProcessing
                             ? "Processing your image with AI magic ✨"
-                            : "Your image is ready! Save or share it below."}
+                            : processedImage
+                            ? "Your image is ready! Save or share it below."
+                            : "Preview your uploaded image before applying the effect."}
                         </p>
                       </div>
 
@@ -575,7 +686,9 @@ export default function GalleryPage() {
 
                         {/* After */}
                         <div className="space-y-2">
-                          <h4 className="font-semibold text-center">After</h4>
+                          <h4 className="font-semibold text-center">
+                            {isProcessing ? "Processing..." : processedImage ? "After" : "Preview"}
+                          </h4>
                           <div className="relative">
                             {isProcessing ? (
                               <div className="w-full h-64 bg-card/30 rounded-xl flex items-center justify-center">
@@ -586,46 +699,71 @@ export default function GalleryPage() {
                                   <p className="text-sm text-muted-foreground">Processing...</p>
                                 </div>
                               </div>
-                            ) : (
+                            ) : processedImage ? (
                               <img
                                 src={processedImage || "/placeholder.svg"}
                                 alt="Processed"
                                 className="w-full h-64 object-cover rounded-xl ring-2 ring-primary/50"
                               />
+                            ) : (
+                              <div className="w-full h-64 bg-card/30 rounded-xl flex items-center justify-center">
+                                <p className="text-sm text-muted-foreground">Effect will appear here</p>
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {!isProcessing && processedImage && (
-                        <div className="flex gap-3 justify-center">
+                      <div className="flex gap-3 justify-center">
+                        {!processedImage ? (
                           <Button
                             className="bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80"
-                            onClick={handleSaveResult}
+                            onClick={processSelectedEffect}
+                            disabled={isProcessing || !uploadedImageId}
                           >
-                            <Save className="w-4 h-4 mr-2" />
-                            Save Image
+                            {isProcessing ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Processing...
+                              </div>
+                            ) : (
+                              <>
+                                <Play className="w-4 h-4 mr-2" />
+                                Apply {selectedPreset.name} Effect
+                              </>
+                            )}
                           </Button>
-                          <Button
-                            variant="outline"
-                            className="border-border hover:bg-card/50 bg-transparent"
-                            onClick={handleShareResult}
-                          >
-                            <Share2 className="w-4 h-4 mr-2" />
-                            Share
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="border-border hover:bg-card/50 bg-transparent"
-                            onClick={() => {
-                              setUploadedImage(null)
-                              setProcessedImage(null)
-                            }}
-                          >
-                            Try Another
-                          </Button>
-                        </div>
-                      )}
+                        ) : (
+                          <>
+                            <Button
+                              className="bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80"
+                              onClick={handleSaveResult}
+                            >
+                              <Save className="w-4 h-4 mr-2" />
+                              Save Image
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="border-border hover:bg-card/50 bg-transparent"
+                              onClick={handleShareResult}
+                            >
+                              <Share2 className="w-4 h-4 mr-2" />
+                              Share
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="border-border hover:bg-card/50 bg-transparent"
+                              onClick={() => {
+                                setUploadedImage(null)
+                                setProcessedImage(null)
+                                setUploadedImageId(null)
+                              }}
+                            >
+                              Try Another
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
